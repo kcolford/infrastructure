@@ -1,0 +1,2 @@
+[mailservers]
+do-tor.kcolford.com ansible_user=root

@@ -1,0 +1,8 @@
+[Unit]
+Description=Pull updates from ansible configuration.
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/bin/ansible-pull -U https://github.com/kcolford/inventory

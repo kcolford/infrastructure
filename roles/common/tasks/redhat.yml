@@ -1,0 +1,13 @@
+---
+- name: install distro specific packages
+  package:
+    state: present
+    name:
+      - dnf-automatic
+      - epel-release
+
+- name: start automatic updates
+  systemd:
+    enabled: yes
+    state: started
+    name: dnf-automatic-install.timer
