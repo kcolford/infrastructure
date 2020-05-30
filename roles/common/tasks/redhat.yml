@@ -11,3 +11,13 @@
     enabled: yes
     state: started
     name: dnf-automatic-install.timer
+
+- name: disable selinux
+  selinux:
+    state: permissive
+    policy: targeted
+  register: selinux
+
+- name: reboot on selinux change
+  reboot: {}
+  when: selinux.reboot_required

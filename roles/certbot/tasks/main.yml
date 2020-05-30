@@ -1,0 +1,45 @@
+---
+- name: install certbot packages
+  package:
+    state: present
+    name: openssl
+
+- name: setup private key for server
+  openssl_privatekey:
+    path: /etc/ssl/me.key
+
+- name: create signing request
+  openssl_csr:
+    path: /etc/ssl/me.csr
+    privatekey_path: /etc/ssl/me.key
+    common_name: "{{ inventory_hostname }}"
+    country_name: CA
+    state_or_province_name: Ontario
+    locality_name: Toronto
+    organization_name: Kieran Colford
+
+- name: create acme private key
+  openssl_privatekey:
+    path: /etc/ssl/acme.key
+
+- name: issue certificate for name
+  acme_certificate: &acmecert
+    account_email: kieran@kcolford.com
+    account_key_src: /etc/ssl/acme.key
+    csr: /etc/ssl/me.csr
+    fullchain_dest: /etc/ssl/me.crt
+    acme_version: 2
+  register: acmedata
+
+- name: publish acme challenge
+  copy:
+    dest: /srv/www/{{ item.key }}/{{ item.value['http-01']['resource'] }}
+    content: "{{ item.value['http-01']['resource_value'] }}"
+  loop: "{{ acmedata.challenge_data | dictsort }}"
+  when: acmedata is changed
+
+- name: validate the challenge and get new cert
+  acme_certificate:
+    <<: *acmecert
+    data: "{{ acmedata }}"
+  when: acmedata is changed

@@ -1,0 +1,63 @@
+- name: install mail server packages
+  package:
+    state: present
+    name:
+      - postfix
+      - cyrus-sasl
+      - opendkim
+      - opendmarc
+      - openarc
+
+- name: configure postfix MTA
+  blockinfile:
+    path: /etc/postfix/main.cf
+    block: |
+      myorigin = $mydomain
+      inet_protocols = all
+      mydestination = $myhostname, localhost.$mydomain, localhost, $mydomain
+      mynetworks_style = host
+      recipient_delimiter = +
+      home_mailbox = Maildir/
+
+      smtpd_tls_security_level = may
+      smtpd_tls_cert_file = /etc/letsencrypt/live/{{ ansible_hostname }}/fullchain.pem
+      smtpd_tls_key_file = /etc/letsencrypt/live/{{ ansible_hostname }}/privkey.pem
+      smtpd_tls_mandatory_ciphers = high
+      #smtpd_tld_dh512_param_file = /etc/ssl/dh512.pem
+      #smtpd_tld_dh1024_param_file = /etc/ssl/dh1024.pem
+
+      smtp_tls_security_level = may
+      smtp_use_tls = yes
+      smtp_tls_CAfile = /etc/ssl/certs/ca-bundle.crt
+
+      non-smtpd_milters = inet:127.0.0.1:8891
+      smtpd_milters = inet:127.0.0.1:8891, inet:127.0.0.1:8893, inet:127.0.0.1:8894
+
+      disable_vrfy_command = yes
+      strict_rfc821_envelopes = yes
+      show_user_unknown_table_name = no
+      allow_percent_hack = no
+      swap_bangpath = no
+      smtpd_tls_received_header = yes
+      smtpd_helo_required = yes
+
+- name: configure email submission
+  blockinfile:
+    path: /etc/postfix/master.cf
+    block: |
+      submission inet n       -       n       -       -       smtpd
+        -o syslog_name=postfix/submission
+        -o smtpd_tls_security_level=encrypt
+        -o smtpd_sasl_auth_enable=yes
+        -o smtpd_reject_unlisted_recipient=no
+      #  -o smtpd_client_restrictions=$mua_client_restrictions
+      #  -o smtpd_helo_restrictions=$mua_helo_restrictions
+      #  -o smtpd_sender_restrictions=$mua_sender_restrictions
+        -o smtpd_recipient_restrictions=permit_sasl_authenticated,reject
+        -o milter_macro_daemon_name=ORIGINATING
+
+- name: enable cyrus sasl service
+  service:
+    name: saslauthd
+    enabled: yes
+    state: started
